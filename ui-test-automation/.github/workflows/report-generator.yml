@@ -1,0 +1,57 @@
+name: API Tests Automation Report
+
+on:
+  schedule:
+    # runs tests at every 3hr on every day-of-week. For more info: https://crontab.guru/
+    - cron: '0 */12 * * *'
+
+  # push:
+  #   branches:
+  #     - main
+  
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-automation-report-generator:
+    timeout-minutes: 5
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # run copies of the current job in parallel
+        os: [ubuntu-latest]
+        java: [17]
+        java-distribution: [temurin]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      # Setup java on the ubuntu-latest machine
+      - name: Setup Java environment
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: ${{ matrix.java-distribution }}
+          cache: maven
+          check-latest: true
+          architecture: x64
+
+      - name: Running Script via Maven
+        run: mvn clean test
+
+      - name: Deploy report page to GitHub Page
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ github.token }}
+          publish_dir: ./docs
+          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'

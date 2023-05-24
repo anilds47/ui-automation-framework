@@ -1,0 +1,46 @@
+on:
+  pull_request:
+    types: ['closed']
+    branches: [prod]
+
+name: Transition Issue To In Production
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-transition-issue:
+    name: Transition Issue
+    runs-on: ubuntu-latest
+    if: ${{ contains(github.event.pull_request.head.ref, 'refs/heads/ZPV-') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Github Branch Name
+        run: |
+          echo "Github Branch Name ${{ github.event.pull_request.head.ref }}"
+
+      - name: Login
+        uses: atlassian/gajira-login@master
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+      - name: Find in Branch
+        id: find-issue-key
+        uses: atlassian/gajira-find-issue-key@v2.0.2
+        with:
+          string: ${{ github.event.pull_request.head.ref }}
+
+      - name: Jira Issue Ticket
+        run: echo "Issue ${{ steps.find-issue-key.outputs.issue }}"
+
+      - name: Jira Issue Transition
+        if: github.event.pull_request.merged == true
+        uses: atlassian/gajira-transition@v2.0.2
+        with:
+          issue: ${{ steps.find-issue-key.outputs.issue }}
+          transition: ${{ secrets.JIRA_QA_TRANS }}

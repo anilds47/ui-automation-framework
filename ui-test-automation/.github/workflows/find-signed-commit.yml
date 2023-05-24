@@ -1,0 +1,28 @@
+name: 'Find signed commits'
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - ready_for_review
+    branches-ignore:
+      - 'dependabot/**'
+    
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-sign-off:
+    name: Write comment if unsigned commits found
+    env:
+      FORCE_COLOR: 1
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: live627/check-pr-signoff-action@v1
+        with:
+          token: ${{ github.token }}
